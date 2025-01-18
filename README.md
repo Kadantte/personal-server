@@ -1,10 +1,13 @@
-# Managing my personal server in 2020
+# Managing my personal server in ~~2020~~ 2023
 
 <p align="center">
   <img src="https://github.com/erebe/personal-server/raw/master/logo.jpeg" alt="logo"/>
 </p>
 
 ### Updates:
+ * 29 July 2023 - Replaced iptables config by nftables
+ * 31 october 2022 - feedback from 2 years old insights [2023 update](#2023)
+ * 9 september 2021 - Added dns over https for pihole
  * 22 December 2020 - Added [https://healthchecks.io](https://healthchecks.io) for backups to ping me on whatsapp
  * 20 November 2020 - Mention of gpg key to sign git commits
  * 12 November 2020 - Add automatic deployment
@@ -72,6 +75,14 @@ My goals for this setup are:
 
 23. [Conclusion](#conclusion)
 24. [If you want more freedom](#freedom)
+
+**EPILOGUE**: [2023 - feedbacks from 2 years insights](#2023)
+
+25. [Security](#2023_security)
+26. [Maintainability](#2023_maintainability)
+27. [Extensibility](#2023_extensibility)
+28. [Observability](#2023_observability)
+28. [2023 Conclusion](#2023_conclusion)
 
 # The road so far <a name="background"></a>
 
@@ -312,6 +323,9 @@ if you want to go a step further, you can
 
 
 ### Secure Network access
+
+**Deprecated** Now using nftables, but iptables still works, so you can keep reading
+
 Last part of the plan is to secure the network by putting in place firewall rules.
 
 I want to stay close to the real things, so I use directly iptables to create my firewall rules. This is at the cost of having to duplicate the rules for IPv4 and IPv6.
@@ -494,7 +508,7 @@ The main benefit of having Kubernetes installed on my server, is that it allow m
 Let's start, to install K3s nothing more complicated than
 ```bash
 kubernetes_install:
-        ssh ${HOST} 'export INSTALL_K3S_EXEC=" --no-deploy servicelb --no-deploy traefik --no-deploy local-storage"; \
+        ssh ${HOST} 'export INSTALL_K3S_EXEC=" --disable servicelb --disable traefik --disable local-storage"; \
                 curl -sfL https://get.k3s.io | sh -'
 ```
 
@@ -1267,7 +1281,7 @@ Once everything is set-up, we only need to add in our github action a call to cu
           curl -X POST -H 'Content-Type: application/json' -H "${token}"  -d "${payload}" https://hooks.erebe.eu/hooks/deploy
 ```
 
-Final version of the deployment is [here](https://github.com/erebe/personal-server/blob/master/webhook/webhook.yml)
+Final version of the deployment is [here](https://github.com/erebe/personal-server/blob/master/services/webhook/webhook.yml)
 
 
 # Hosting your own cloud with Nextcloud <a name="cloud"></a>
@@ -1806,3 +1820,103 @@ spec:
     * Can be used to mirror your github repository
     * Can be used to have your own git actions
     * Can be used to have your own Docker repository
+    
+    
+    
+# Epilogue: 2023 update <a name="2023"></a>
+
+It has been 2 years now that I wrote this guide, so I thought it was time for an update and give back some feedbacks now that I earned the benefit of hinsights.
+
+## Gpg key Vs Age and Security in general <a name="2023_security"></a>
+
+A lot of people ask me why I don’t talk about [Age](https://github.com/FiloSottile/age) `a simple, modern and secure file encryption tool, format, and Go library`. To be honest I was not knowing age before starting this guide and discovered it when the maintainer contacted me. I gave it a shot at the time, but even if the idea of providing something simpler to use than GPG to ensure authenticity was appealing to me, I was sat back due to the lack of integration with the rest of the ecosystem/tools. I gave it an other shot this year, and even if the status improved a lot, it is not possible yet to replace GPG for all use cases it covers.
+
+To give you some examples, I use my GPG key coupled with a Yubikey to:
+
+* Encrypt my files/secrets
+* Sign my commits on git
+* Provide ssh key attached to my ssh-agent
+* 2FA device to authentificate me
+
+To this day for example, you [can’t sign your git commit](https://github.com/FiloSottile/age/discussions/372) with an age key. So even if setting up a GPG key on a Yubikey can be involving, since I have done it, I never had to touch it again. So in term of maintainability and day to day simplicity GPG+Yubikey is still a no brainer for me.
+
+And to be honest, for me the big problem that is not solved with GPG and age, is revocation. My keys never got lost/stolen yet?, but some day it will happen and in all the cases with GPG/Yubikey/Age, it will be an hasslle to traceback every site and revoke everything manually. Or re-crypt every file and erase them from history, if that even possible.
+
+There is still, to my knowledge, no protocol/central place to say, please this device/key might be compromised revoke it and never allow it again.
+
+I don’t consider myself a security expert, not even a security lover, for me it is just a necessary pain so I want it to be simple to use daily and be fool proof. To avoid being locked-out of my accounts in case I lose access to my Yubikey, I bought an account to [Bitwarden](https://bitwarden.com/) for 10$ a year and always use TOTP for 2FA in addition of my Yubikey.
+
+So to sum-up my today security is still, GPG with a Yubikey coupled with TOTP (bitwarden) as a fallback in case I lose access to one of my devices. With this setup I never felt limited in any way, nor felt it was too cumbersome to use daily and is low maintenance so far. 
+But hey, the real challenge will arise when I am going to lose one of my authentication factor ¯\_(ツ)_/¯
+
+## Maintainability <a name="2023_maintenability"></a>
+
+As you may have understood now, one of my requirements is low maintainability. I don’t have the luxury nowadays to throw full consecutive weekends into some side projects. Don’t get me wrong, a lot of my setups are there for me to learn some new stuff and I still does it out of passion, but I want to choose when I am available to poor those hours into the projects. I don’t want to have to spend this time because something broke, or because the stuff is flaky and I need to attend to it to make it back alive and use it. 
+
+With this requirement, and even if in my mind nothing beat the maintainability/simplicity of a single machine with debian on it, I couldn’t have been more pleased by this current setup.
+
+I went from machines were everything were setup by hand and after a few months/year forgetting how it was installed and how to modify/upgrade it. Until one day the machine goes out of life, and you have to re-setup everything again by hand. This time you said, ok time to use some config management, and decide to settle using ansible, but here again after a few months/year you can’t re-setup your machine because your python environment/venv is fucked up, some library have been updated and are not compatible anymore, and you spend more time attending to your playbook every time you want to do something than doing the real thing that lend you here in the fist place.
+
+### What are the things that make this setup great in term of maintainability from my personnel use:
+ 
+* Everything is centralized in a single repository, which is the source of truth
+    * Secrets are stored along the code,  no other dependencies are required. It has been a big hassle for me before to have secrets in a different place
+    * Easier to automate, update, scripts things, backups, all the git ops flow things
+    * Documentation, the readme which is at first a tutorial was helping me remembering commands and how easy it was to execute some actions. Lowering my biais of if I don’t remember, it should be difficult/take time so I don’t want to do it.
+
+
+* Not going full blown with devops tools
+    * It means no terraform and deciding to setup some easy/long lived stuff by hand/ui instead of relying on a more complex tool that need to be updated/attenteded
+    * It means no config management, and instead relying of Make, even if today I would use [just](https://github.com/casey/just) ) while keeping the key idea of idempotency 
+    * It means no helm and relying only on kubectl for my own installation, as I don’t need all the feature of it
+    * Usally devops tools evolve quickly and from my experience require daily practice for them to stay alive. They don’t usually like to be used once in a while, something just need to break in the middle after few months without usage
+
+
+* Having a CI to automate everything
+    * This one is thanks to github, but this is the first time that I have a CI integrated into my setup as before it was more a professional thing. Thanks to the democratization and lowering the access bar from Git providers to CI, this make this setup a breeze to use.
+    * Git + CI + [webhook](https://github.com/adnanh/webhook) make a super smooth workflow.
+
+
+* A single control plane with Kubernetes and K3s
+    * I don’t have anymore only a single machine to monitor in my setup (more on that later), and it is really handy to be able to connect to my kubernetes cluster and see the well being of all my deployments/applications at once, where ever they run on.
+    * K3s as proved itself to be super stable and never let me down once in those 2 years. Upgrading it to a newer version as been as easy as running a single command on every machines connected to the cluster
+
+So to sumarrize what make things easier in my life are, simplicity to use (k3s may not fit to that to some but I use it daily at work so thats ok to me) so I don’t have to remember how to use the tools/do stuff, central point so I get started quickly and don’t spend time looking for what I need, automation so I don’t spend time looking how to build this app again, or how to re-setup/deploy it.
+
+### What I would like to improve in term of maintainability ? 
+
+First of all, even if everything is centralized in the git repository, re-building/upgrading everything is split across multiple dockerfile/yaml file/makefile, and I think I fail when I need to answer those question: If a new openssl vulnerability patch got released on november 1rst, how many of my apps are affected/need to be rebuild with the patch ?
+
+I still dream of an apt-get update & apt-get upgrade across all my machines/containers/app, and I still think I need a big button where I am able to rebuild and update everything easily.
+
+
+## Extensibility <a name="2023_extensibility"></a>
+
+The combinaison of wireguard + kubernetes make everything extensible easily by default, while still keeping the same central point/control plane. 
+This year I bought a flat, and I have now some place to host more things at home. I decided to buy a [mini-pc](https://www.amazon.fr/gp/product/B08PBJ2LPR/ref=ppx_yo_dt_b_asin_title_o00_s00?ie=UTF8&psc=1) and a [storage bay](https://www.amazon.fr/gp/product/B084Z3Y3CG/ref=ppx_yo_dt_b_asin_title_o02_s00?ie=UTF8&psc=1) in order to build myself a NAS.
+On the mini-pc I run [Proxmox](https://www.proxmox.com/en/) that in turn run ZFS and a VM attached to my kubernetes cluster that run [Minio](https://github.com/minio/minio) to have an S3/backups storage at home.
+
+All this complexity, the fact that the machines run on a different network, by different operating systems, are in the end abstracted away thanks to wireguard to flatten the network, and kubernetes to centralize the compute.
+I really enjoyed that this setup let me started easily with a single machine, and allowed me to grow without pain and changing anything in the way how I manage the whole.
+
+### What I would like to improve in term of extensibility ? 
+
+For now nothing, I quite happy with what I have. I never felt the need to have an extensible data layer, maybe it will come one day, but as I don’t have many photos/videos/movies, my data need is quite low at the moment.
+
+
+## Observability <a name="2023_observability"></a>
+
+I still don't monitor my machines, beside the helthchecks.io alerts configured to page me on whatsapp for my backups and ping of external services.
+At first I thought about setting up netdata/or a grafana + prometheus, but so far, I never felt the need to investigate what was going on.
+Using k9s + ssh to monitor/have a glance of my machines status, provided to be enough.
+Maybe one day I will feel the need, but with my low usage, hardware is robust enough for me to trust the system.
+
+# 2023 Conclusion <a name="2023_conclusion"></a>
+
+After 2 years, I am pretty happy with this setup. I picture it as secure, simple to use, robust, maintenable and extensible.
+But it is not all white, and for the years to come, I would like to improve the few things below
+1. Force me to revoke one of my 2FA device in order to measure/learn the pain to do it and avoid fearing such event to occur.
+2. Improving maintenability by automating upgrade/re-build of everything. So far I only update when I decide too, but would like to ease this process and centralize version of everything
+3. Reduce my reliance on a 3rd party CI (github), everything can work without it, but it is too convenient, so I would like to internalize it (GitlabCI ? Drone ? Will see)
+4. Ease integration ? I can't use on the shelf tool and need to re-integrate every myself, which is sometime a pain, as it is not as easy as start this container in portainer. But hey, it is the purpose of this project to do it myself to learn ¯\_(ツ)_/¯
+
